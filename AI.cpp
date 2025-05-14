@@ -32,6 +32,8 @@ const std::vector<std::pair<int, int>> directions = { {1, 0}, {0, 1}, {-1, 0}, {
 
 void GetMap(IAPI& api);
 std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& map, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end);
+std::deque<std::deque<double>> generate_weights(std::deque<std::deque<bool>>& map, ICharacterAPI& api);
+std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<bool>>& map, std::deque<std::deque<double>>& weights, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end);
 std::pair<int, int> GetEnemyToAttack(ICharacterAPI& api);
 void Print_Path(std::vector<std::pair<int32_t, int32_t>> path);
 void MoveToCenter(ICharacterAPI& api, const std::pair<double, double>& location);
@@ -269,6 +271,148 @@ std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& 
             }
         }
     }
+
+    // 如果没有路径，返回空
+    return {};
+}
+
+std::deque<std::deque<double>> generate_weights(std::deque<std::deque<bool>>& map, ICharacterAPI& api) {
+    int weights_n = map.size();
+    int weights_m = map[0].size();
+    std::deque<std::deque<double>> weights(
+        weights_n,
+        std::deque<double>(weights_m, 1.0)
+    );
+    auto enemies = api.GetEnemyCharacters();
+    for (const auto& enemy : enemies) {
+        int enemy_x = enemy->x;
+        int enemy_y = enemy->y;
+        int enemy_attack_range = enemy->commonAttackRange;
+        for (int i = -enemy_attack_range; i <= enemy_attack_range; i++) {
+            for (int j = -enemy_attack_range; j <= enemy_attack_range; j++) {
+                if (i * i + j * j < enemy_attack_range * enemy_attack_range &&
+                    enemy_x + i >= 0 && enemy_x + i < weights_n &&
+                    enemy_y + j >= 0 && enemy_y + j < weights_m
+                    ) {
+                    weights[enemy_x + i][enemy_y + j] += 5 * exp(-(i * i + j * j) / (enemy_attack_range * enemy_attack_range) / 2);
+                }
+            }
+        }
+    }
+    return weights;
+}
+
+
+std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<bool>>& map, std::deque<std::deque<double>>& weights, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end) {
+    // 功能：根据权值地图利用Dijkstra算法范围总权值和最短的路径
+    // 判断，如果start和end在同一位置，直接返回空
+    if (start == end)
+    {
+        return {};
+    }
+    // 判断，如果start位置处于障碍物上，直接返回空
+    if (start.first < 0 || start.first >= map.size() || start.second < 0 || start.second >= map[0].size())
+    {
+        return {};
+    }
+    if (end.first < 0 || end.first >= map.size() || end.second < 0 || end.second >= map[0].size())
+    {
+        return {};
+    }
+    // 判断，如果start位置位于地图外，直接返回空
+    if (!map[start.first][start.second] || !map[end.first][end.second])
+    {
+        return {};
+    }
+    size_t n = map.size();
+    size_t m = map[0].size();
+
+    // weights是全地图上的权值矩阵
+    size_t weights_n = weights.size();
+    size_t weights_m = weights[0].size();
+
+    // ---------------------------------------Main Logic: 使用Dijkstra算法计算出在加权情况下的路径----------------------------------
+    // 初始化距离数组，dist[r][c] 表示从起点到 (r,c) 的最小成本 (double类型)
+    std::vector<std::vector<double>> dist(n, std::vector<double>(m, std::numeric_limits<double>::max()));
+    // 初始化父节点数组，parent[r][c] 表示在最短路径中到达 (r,c) 的前一个节点
+    std::vector<std::vector<std::pair<int32_t, int32_t>>> parent(n, std::vector<std::pair<int32_t, int32_t>>(m, { -1, -1 }));
+
+    // 优先队列存储元素类型定义: {cost (double), {row, col}}
+    using PQElement = std::pair<double, std::pair<int32_t, int32_t>>;
+    std::priority_queue<PQElement, std::vector<PQElement>, std::greater<PQElement>> pq;
+
+    // 初始化起点
+    int32_t start_r = start.first;
+    int32_t start_c = start.second;
+
+    // 起点到自身的成本即为起点格子的权重 (直接从 double 类型的 weights 网格获取)
+    dist[start_r][start_c] = weights[start_r][start_c];
+    pq.push({ dist[start_r][start_c], {start_r, start_c} }); // 存入格式: {成本, {行, 列}}
+
+    while (!pq.empty()) {
+        PQElement top_element = pq.top();
+        pq.pop();
+
+        double current_accumulated_cost = top_element.first; // 成本是 double
+        std::pair<int32_t, int32_t> current_coords = top_element.second;
+        int32_t r = current_coords.first;
+        int32_t c = current_coords.second;
+
+        // 浮点数比较：如果 current_accumulated_cost 明显大于 dist[r][c]，则跳过
+        // 为避免浮点精度问题，可以加上一个小的 epsilon，但对于Dijkstra，直接比较通常也可以
+        // if (current_accumulated_cost > dist[r][c] + std::numeric_limits<double>::epsilon()) {
+        if (current_accumulated_cost > dist[r][c]) { // 直接比较通常足够
+            continue;
+        }
+
+        // 如果到达终点
+        if (r == end.first && c == end.second) {
+            std::vector<std::pair<int32_t, int32_t>> path;
+            std::pair<int32_t, int32_t> path_tracer_coord = end;
+            while (path_tracer_coord.first != -1 && path_tracer_coord.second != -1) {
+                path.push_back(path_tracer_coord);
+                if (path_tracer_coord == start) {
+                    break;
+                }
+                path_tracer_coord = parent[path_tracer_coord.first][path_tracer_coord.second];
+            }
+
+            if (path.empty() || path.back() != start) {
+                if (!(start.first == end.first && start.second == end.second)) {
+                    return {};
+                }
+            }
+            std::reverse(path.begin(), path.end());
+            return path;
+        }
+
+        // 使用 `directions` 向量探索当前节点的邻居
+        for (const auto& dir : directions) {
+            int32_t dr_val = dir.first;
+            int32_t dc_val = dir.second;
+
+            int32_t next_r = r + dr_val;
+            int32_t next_c = c + dc_val;
+
+            if (next_r >= 0 && next_r < static_cast<int32_t>(n) &&
+                next_c >= 0 && next_c < static_cast<int32_t>(m)) {
+
+                if (map[next_r][next_c]) { // 检查是否可通行
+                    // 邻居单元格的成本 (直接从 double 类型的 weights 网格获取)
+                    double cost_of_next_cell = weights[next_r][next_c];
+                    // 新的路径总成本
+                    double new_cost_to_reach_next = current_accumulated_cost + cost_of_next_cell;
+
+                    if (new_cost_to_reach_next < dist[next_r][next_c]) {
+                        dist[next_r][next_c] = new_cost_to_reach_next;
+                        parent[next_r][next_c] = { r, c };
+                        pq.push({ new_cost_to_reach_next, {next_r, next_c} });
+                    }
+                }
+            }
+        }
+    }
+    // -------------------------------------- End of Main Logic ----------------------------------------------------
 
     // 如果没有路径，返回空
     return {};
