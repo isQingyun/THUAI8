@@ -37,7 +37,7 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
 std::pair<int, int> GetEnemyToAttack(ICharacterAPI& api);
 void Print_Path(std::vector<std::pair<int32_t, int32_t>> path);
 void MoveToCenter(ICharacterAPI& api, const std::pair<double, double>& location);
-void MoveFollowPath(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>> path);
+void MoveFollowPath(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>> path, int oneStep);
 std::vector<std::pair<int32_t, int32_t>> SpaceAroundTarget(std::deque<std::deque<bool>>& map, std::pair<int32_t, int32_t> target);
 void SortSource(std::vector<std::pair<int32_t, int32_t>>& sourceLocations);
 
@@ -80,11 +80,13 @@ void AI::play(ICharacterAPI& api)
         // player1的操作
         // std::this_thread::sleep_for(std::chrono::milliseconds(70));
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        auto target = SpaceAroundTarget(boolMap, constructionLocations[0]);
-        auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target[0]);
+        auto target = SpaceAroundTarget(boolMap, enemyHomeLocation);
+        auto weight = generate_weights(boolMap, api);
+        auto path = FindWeightedPath(boolMap, weight, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target[0]);
+        // auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target[0]);
         Print_Path(path);
         std::this_thread::sleep_for(std::chrono::milliseconds(70));
-        MoveFollowPath(api, path);
+        MoveFollowPath(api, path, 5);
 
     }
     else if (this->playerID == 2)
@@ -370,18 +372,22 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
             std::vector<std::pair<int32_t, int32_t>> path;
             std::pair<int32_t, int32_t> path_tracer_coord = end;
             while (path_tracer_coord.first != -1 && path_tracer_coord.second != -1) {
-                path.push_back(path_tracer_coord);
+                 //path.push_back(path_tracer_coord);
+                path.push_back(
+                    { (path_tracer_coord.second - parent[path_tracer_coord.first][path_tracer_coord.second].second), -(path_tracer_coord.first - parent[path_tracer_coord.first][path_tracer_coord.second].first) }
+                );
                 if (path_tracer_coord == start) {
                     break;
                 }
                 path_tracer_coord = parent[path_tracer_coord.first][path_tracer_coord.second];
             }
 
-            if (path.empty() || path.back() != start) {
+            if (path.empty()) {
                 if (!(start.first == end.first && start.second == end.second)) {
                     return {};
                 }
             }
+            path.pop_back();
             std::reverse(path.begin(), path.end());
             return path;
         }
@@ -512,13 +518,13 @@ void MoveToCenter(ICharacterAPI& api, const std::pair<double, double>& location)
 }
 
 //沿着FindPath()给出的路线运动 考虑了移速buff 包含误差修正
-void MoveFollowPath(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>> path)
+void MoveFollowPath(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>> path, int oneStep)
 {
     if (path.size() == 0)
     {
         return;
     }
-    auto one_step = path.size() >= 10 ? 10 : path.size(); // 最多移动10步 防止积累过多误差或长时间占用线程
+    auto one_step = path.size() >= oneStep ? oneStep : path.size(); // 最多移动oneStep步 防止积累过多误差或长时间占用线程
     for (int i = 0; i < one_step; i++)
     {
         double current_speed = selfinfo->speed; //格/s
