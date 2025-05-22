@@ -13,8 +13,11 @@
 #include <iostream>
 #include <cassert>
 #include <algorithm>
+<<<<<<< HEAD
 #include <cstdlib>
 #include <ctime>
+=======
+>>>>>>> remotes/origin/main
 #define PI 3.1415926535
 
 // ---------------全局变量声明------------------------------
@@ -22,6 +25,7 @@ bool getMapSuccess = false;                                                     
 std::pair<int, int> myHomeLocation;                                                     // 己方大本营
 std::pair<int, int> enemyHomeLocation;                                                  // 敌方大本营
 std::vector<std::pair<int, int>> economyResourceLocations;                              // 经济资源，按照距离己方大本营的顺序排序
+<<<<<<< HEAD
 int economyResourceIndex_head = 0;                                                      // 经济资源索引 从头到尾
 int economyResourceIndex_tail;                                                          // 经济资源索引 从尾到头
 std::vector<std::pair<int, int>> additionResourceLocations;                             // 加成资源，按照距离己方大本营的顺序排序
@@ -63,6 +67,30 @@ double CalculateAngle(double x1, double y1, double x2, double y2);
 void SortPointsByProximity(std::vector<std::pair<int, int>>& points, const std::pair<int, int>& myPosition);
 
 std::array<THUAI8::CharacterType, 6> CharacterTypeDict;
+=======
+int economyResourceIndex = 0;                                                           // 经济资源索引
+std::vector<std::pair<int, int>> additionResourceLocations;                             // 加成资源，按照距离己方大本营的顺序排序
+int additionResourceIndex = 0;                                                          // 加成资源索引
+std::vector<std::pair<int, int>> constructionLocations;                                 // 建筑点，按照距离己方大本营的顺序排序
+std::deque<std::deque<bool>> boolMap;                                                   // 布尔地图（寻路等函数所需的实参）
+std::shared_ptr<const THUAI8::Character> selfinfo;                                      // 角色信息
+std::vector<std::vector<THUAI8::PlaceType>> mapinfo;                                    // 地图信息
+const std::vector<std::pair<int, int>> directions = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}}; // 右，下，左，上 寻路等函数所用的中间量
+std::array<THUAI8::CharacterType, 6> CharacterTypeDict;                                 // 角色类型
+//=================全局函数声明=============================
+
+void GetMap(IAPI &api);
+std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>> &map, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end);
+std::deque<std::deque<double>> generate_weights(std::deque<std::deque<bool>> &map, ICharacterAPI &api);
+std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<bool>> &map, std::deque<std::deque<double>> &weights, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end);
+std::pair<int, int> GetEnemyToAttack(ICharacterAPI &api);
+void Print_Path(std::vector<std::pair<int32_t, int32_t>> path);
+void MoveToCenter(ICharacterAPI &api, const std::pair<double, double> &location);
+void MoveFollowPath(ICharacterAPI &api, std::vector<std::pair<int32_t, int32_t>> path, int oneStep);
+std::vector<std::pair<int32_t, int32_t>> SpaceAroundTarget(std::deque<std::deque<bool>> &map, std::pair<int32_t, int32_t> target);
+void SortSource(std::vector<std::pair<int32_t, int32_t>> &sourceLocations);
+int Distance(int x1, int y1, int x2, int y2); // 欧式距离
+>>>>>>> remotes/origin/main
 // 为假则play()期间确保游戏状态不更新，为真则只保证游戏状态在调用相关方法时不更新，大致一帧更新一次
 extern const bool asynchronous = true;
 
@@ -85,6 +113,7 @@ extern const std::array<THUAI8::CharacterType, 6> MonstersCharacterTypeDict = {
     THUAI8::CharacterType::TieShan,
 };
 
+<<<<<<< HEAD
 // extern const std::array<THUAI8::CharacterType, 6> BuddhistsCharacterTypeDict = {
 //     THUAI8::CharacterType::TangSeng,
 //     THUAI8::CharacterType::SunWukong,
@@ -104,25 +133,36 @@ extern const std::array<THUAI8::CharacterType, 6> MonstersCharacterTypeDict = {
 // };
 
 void AI::play(ICharacterAPI& api)
+=======
+void AI::play(ICharacterAPI &api)
+>>>>>>> remotes/origin/main
 {
     selfinfo = api.GetSelfInfo();
     mapinfo = api.GetFullMap();
 
+<<<<<<< HEAD
     // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+=======
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+>>>>>>> remotes/origin/main
     if (!getMapSuccess)
     {
         GetMap(api);
         getMapSuccess = true;
+<<<<<<< HEAD
         economyRecourseAmount = economyResourceLocations.size();
         additionRecourseAmount = additionResourceLocations.size();
         constractionAmount = constructionLocations.size();
         economyResourceIndex_tail = economyRecourseAmount - 1;
         additionResourceIndex_tail = additionRecourseAmount - 1;
+=======
+>>>>>>> remotes/origin/main
     }
 
     if (this->playerID == 1)
     {
         // player1的操作
+<<<<<<< HEAD
         if (selfinfo->hp <= 400)
         {
             auto weight = generate_weights(boolMap, api);
@@ -173,17 +213,33 @@ void AI::play(ICharacterAPI& api)
                 std::cout << "No economy resource available!" << std::endl;
             }
         }
+=======
+        // std::this_thread::sleep_for(std::chrono::milliseconds(70));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        auto target = SpaceAroundTarget(boolMap, enemyHomeLocation);
+        auto weight = generate_weights(boolMap, api);
+        auto path = FindWeightedPath(boolMap, weight, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target[0]);
+        // auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target[0]);
+        Print_Path(path);
+        std::this_thread::sleep_for(std::chrono::milliseconds(70));
+        MoveFollowPath(api, path, 5);
+>>>>>>> remotes/origin/main
     }
     else if (this->playerID == 2)
     {
         // player2的操作
         if (!economyResourceLocations.empty())
         {
+<<<<<<< HEAD
             auto target = economyResourceLocations[economyResourceIndex_head];
+=======
+            auto target = economyResourceLocations[economyResourceIndex];
+>>>>>>> remotes/origin/main
             // api.Print("Economy Resource Index: " + std::to_string(economyResourceIndex));
             // api.Print("Economy Resource Location: (" + std::to_string(target.first) + "," + std::to_string(target.second) + ")");
             auto targetState = api.GetEconomyResourceState(target.first, target.second);
             // api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
+<<<<<<< HEAD
             while (!targetState.has_value() || targetState.value().process) // Harvestable = 1,BeingHarvested = 2,Harvested = 3,
             {
                 /*if (!targetState.has_value())
@@ -206,6 +262,22 @@ void AI::play(ICharacterAPI& api)
             }
             api.Print("Process:" + std::to_string(targetState.value().process));
             if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < 1500)
+=======
+            while (!targetState.has_value() || targetState.value().process != 100) // Harvestable = 1,BeingHarvested = 2,Harvested = 3,
+            {
+                economyResourceIndex++;
+                // 完尽情况暂不考虑
+                if (economyResourceIndex >= economyResourceLocations.size())
+                {
+                    economyResourceIndex = 0;
+                }
+                api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
+                target = economyResourceLocations[economyResourceIndex];
+                targetState = api.GetEconomyResourceState(target.first, target.second);
+            }
+            api.Print("Process:" + std::to_string(targetState.value().process));
+            if (Distance(selfinfo->x, selfinfo->y, target.first * 1000, target.second * 1000) < 1500)
+>>>>>>> remotes/origin/main
             {
                 // 开采，距离够
                 api.Produce();
@@ -213,11 +285,18 @@ void AI::play(ICharacterAPI& api)
             else
             {
                 // 距离不够寻路移动
+<<<<<<< HEAD
                 auto locationTarget = SpaceAroundTarget(boolMap, target);
                 auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]);
                 Print_Path(path);
                 std::this_thread::sleep_for(std::chrono::milliseconds(70));
                 MoveFollowPath2(api, path, 1500);
+=======
+                auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target);
+                Print_Path(path);
+                std::this_thread::sleep_for(std::chrono::milliseconds(70));
+                MoveFollowPath(api, path);
+>>>>>>> remotes/origin/main
             }
         }
         else
@@ -228,6 +307,7 @@ void AI::play(ICharacterAPI& api)
     else if (this->playerID == 3)
     {
         // player3的操作
+<<<<<<< HEAD
         auto target = constructionLocations[constructionIndex];
         auto targetState = api.GetConstructionState(target.first, target.second);
         if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < 1250)
@@ -264,16 +344,47 @@ void AI::play(ICharacterAPI& api)
                     std::this_thread::sleep_for(std::chrono::milliseconds(70));
                 }
             }
+=======
+        auto target = economyResourceLocations[economyResourceIndex];
+        // api.Print("Economy Resource Index: " + std::to_string(economyResourceIndex));
+        // api.Print("Economy Resource Location: (" + std::to_string(target.first) + "," + std::to_string(target.second) + ")");
+        auto targetState = api.GetEconomyResourceState(target.first, target.second);
+        // api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
+        while (!targetState.has_value() || targetState.value().process != 100) // Harvestable = 1,BeingHarvested = 2,Harvested = 3,
+        {
+            economyResourceIndex++;
+            // 完尽情况暂不考虑
+            if (economyResourceIndex >= economyResourceLocations.size())
+            {
+                economyResourceIndex = 0;
+            }
+            api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
+            target = economyResourceLocations[economyResourceIndex];
+            targetState = api.GetEconomyResourceState(target.first, target.second);
+        }
+        api.Print("Process:" + std::to_string(targetState.value().process));
+        if (Distance(selfinfo->x, selfinfo->y, target.first * 1000, target.second * 1000) < 1500)
+        {
+            // 开采，距离够
+            api.Produce();
+>>>>>>> remotes/origin/main
         }
         else
         {
             // 距离不够寻路移动
+<<<<<<< HEAD
             auto locationTarget = SpaceAroundTarget(boolMap, target);
             auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]);
             //auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target);
             Print_Path(path);
             std::this_thread::sleep_for(std::chrono::milliseconds(70));
             MoveFollowPath2(api, path, 1250);
+=======
+            auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target);
+            Print_Path(path);
+            std::this_thread::sleep_for(std::chrono::milliseconds(70));
+            MoveFollowPath(api, path);
+>>>>>>> remotes/origin/main
         }
     }
     else if (this->playerID == 4)
@@ -283,6 +394,7 @@ void AI::play(ICharacterAPI& api)
         auto commonAttackRange = selfinfo->commonAttackRange;
         if (!additionResourceLocations.empty())
         {
+<<<<<<< HEAD
             auto target = additionResourceLocations[additionResourceIndex_head];
             auto targetState = api.GetAdditionResourceState(target.first, target.second);
             while (!targetState.has_value() || targetState.value().hp == 0) // Harvestable = 1,BeingHarvested = 2,Harvested = 3,
@@ -294,6 +406,19 @@ void AI::play(ICharacterAPI& api)
                     additionResourceIndex_head = 0;
                 }
                 target = additionResourceLocations[additionResourceIndex_head];
+=======
+            auto target = additionResourceLocations[additionResourceIndex];
+            auto targetState = api.GetAdditionResourceState(target.first, target.second);
+            while (!targetState.has_value() || targetState.value().hp == 0) // Harvestable = 1,BeingHarvested = 2,Harvested = 3,
+            {
+                additionResourceIndex++;
+                // 完尽情况暂不考虑
+                if (additionResourceIndex >= additionResourceLocations.size())
+                {
+                    additionResourceIndex = 0;
+                }
+                target = additionResourceLocations[additionResourceIndex];
+>>>>>>> remotes/origin/main
                 targetState = api.GetAdditionResourceState(target.first, target.second);
             }
             api.Print("HP:" + std::to_string(targetState.value().hp));
@@ -307,11 +432,18 @@ void AI::play(ICharacterAPI& api)
             else
             {
                 // 距离不够寻路移动
+<<<<<<< HEAD
                 auto locationTarget = SpaceAroundTarget(boolMap, target);
                 auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[1]);
                 Print_Path(path);
                 std::this_thread::sleep_for(std::chrono::milliseconds(70));
                 MoveFollowPath2(api, path, commonAttackRange);
+=======
+                auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target);
+                Print_Path(path);
+                std::this_thread::sleep_for(std::chrono::milliseconds(70));
+                MoveFollowPath(api, path);
+>>>>>>> remotes/origin/main
             }
         }
         else
@@ -328,7 +460,11 @@ void AI::play(ICharacterAPI& api)
     }
 }
 
+<<<<<<< HEAD
 void AI::play(ITeamAPI& api) // 默认team playerID 为0
+=======
+void AI::play(ITeamAPI &api) // 默认team playerID 为0
+>>>>>>> remotes/origin/main
 {
     // player0的操作
     auto teamInfo = api.GetSelfInfo();
@@ -338,7 +474,11 @@ void AI::play(ITeamAPI& api) // 默认team playerID 为0
     {
         CharacterTypeDict = (teamID == 0) ? BuddhistsCharacterTypeDict : MonstersCharacterTypeDict;
     }
+<<<<<<< HEAD
     auto HomeEconomy = std::vector{ gameinfo->buddhistsTeamEconomy, gameinfo->monstersTeamEconomy };
+=======
+    auto HomeEconomy = std::vector{gameinfo->buddhistsTeamEconomy, gameinfo->monstersTeamEconomy};
+>>>>>>> remotes/origin/main
     auto myHomeEconomy = HomeEconomy[teamID];
     auto players = api.GetCharacters();
     auto energy = api.GetEnergy();
@@ -378,7 +518,11 @@ void AI::play(ITeamAPI& api) // 默认team playerID 为0
 // 获取地图，存储经济资源，加成资源，建筑点，大本营的位置
 // 存储表示可通行性的bool地图，1表示可通行，0表示不可通行
 // 可通行：Space  Bush  EconomicResource  AdditionRescoure（其他均不可通行）
+<<<<<<< HEAD
 void GetMap(IAPI& api)
+=======
+void GetMap(IAPI &api)
+>>>>>>> remotes/origin/main
 {
     std::cout << "GET MAP!" << std::endl;
     if (getMapSuccess == false)
@@ -435,6 +579,7 @@ void GetMap(IAPI& api)
                 }
             }
         }
+<<<<<<< HEAD
         // 按照距离当前位置最近的原则排序
         SortPointsByProximity(economyResourceLocations, myHomeLocation);
         SortPointsByProximity(additionResourceLocations, myHomeLocation);
@@ -444,6 +589,11 @@ void GetMap(IAPI& api)
         // SortSource(economyResourceLocations);
         // SortSource(additionResourceLocations);
         // SortSource(constructionLocations);
+=======
+        SortSource(economyResourceLocations);
+        SortSource(additionResourceLocations);
+        SortSource(constructionLocations);
+>>>>>>> remotes/origin/main
     }
     boolMap.resize(mapinfo.size());
     for (int i = 0; i < mapinfo.size(); i++)
@@ -451,7 +601,11 @@ void GetMap(IAPI& api)
         boolMap[i].resize(mapinfo[0].size());
         for (int j = 0; j < mapinfo[0].size(); j++)
         {
+<<<<<<< HEAD
             if (mapinfo[i][j] == THUAI8::PlaceType::Space || mapinfo[i][j] == THUAI8::PlaceType::Bush)
+=======
+            if (mapinfo[i][j] == THUAI8::PlaceType::Space || mapinfo[i][j] == THUAI8::PlaceType::Bush || mapinfo[i][j] == THUAI8::PlaceType::EconomyResource || mapinfo[i][j] == THUAI8::PlaceType::AdditionResource)
+>>>>>>> remotes/origin/main
             {
                 boolMap[i][j] = true;
             }
@@ -465,7 +619,11 @@ void GetMap(IAPI& api)
 
 // 寻路 注意起点和终点必须是space或bush，否则会返回空
 // 当目标点是障碍（如资源、大本营）时，先调用下面的SpaceAroundTarget()作为寻路终点
+<<<<<<< HEAD
 std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& map, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end)
+=======
+std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>> &map, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end)
+>>>>>>> remotes/origin/main
 {
     // 判断，如果start和end在同一位置，直接返回空
     if (start == end)
@@ -490,7 +648,11 @@ std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& 
 
     std::vector<std::vector<bool>> visited(n, std::vector<bool>(m, false));
     std::queue<std::pair<int32_t, int32_t>> q;
+<<<<<<< HEAD
     std::vector<std::vector<std::pair<int32_t, int32_t>>> parent(n, std::vector<std::pair<int32_t, int32_t>>(m, { -1, -1 }));
+=======
+    std::vector<std::vector<std::pair<int32_t, int32_t>>> parent(n, std::vector<std::pair<int32_t, int32_t>>(m, {-1, -1}));
+>>>>>>> remotes/origin/main
     // 初始化起点
     q.push(start);
     visited[start.first][start.second] = true;
@@ -508,11 +670,22 @@ std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& 
             // 回溯路径
             while (current != start)
             {
+<<<<<<< HEAD
                 if (current.first >= 0 &&
                     current.second >= 0)
                 {
                     path.push_back({ current.first , current.second });
                     current = parent[current.first][current.second];
+=======
+                if (current.first < parent.size() &&
+                    current.second < parent[0].size() && current.first >= 0 &&
+                    current.second >= 0)
+                {
+                    auto prev = parent[current.first][current.second];
+                    path.push_back(
+                        {(current.second - prev.second), -(current.first - prev.first)});
+                    current = prev;
+>>>>>>> remotes/origin/main
                 }
                 else
                 {
@@ -524,7 +697,11 @@ std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& 
         }
 
         // 探索四个方向
+<<<<<<< HEAD
         for (const auto& dir : directions)
+=======
+        for (const auto &dir : directions)
+>>>>>>> remotes/origin/main
         {
             int nx = current.first + dir.first;
             int ny = current.second + dir.second;
@@ -534,7 +711,11 @@ std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& 
                 {
                     visited[nx][ny] = true;
                     parent[nx][ny] = current;
+<<<<<<< HEAD
                     q.push({ nx, ny });
+=======
+                    q.push({nx, ny});
+>>>>>>> remotes/origin/main
                 }
             }
         }
@@ -544,6 +725,7 @@ std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& 
     return {};
 }
 
+<<<<<<< HEAD
 // 打印路径 调试用
 void Print_Path(std::vector<std::pair<int32_t, int32_t>> path)
 {
@@ -781,6 +963,9 @@ double CalculateAngle(double x1, double y1, double x2, double y2)
     return angle;
 }
 std::deque<std::deque<double>> generate_weights(std::deque<std::deque<bool>>& map, ICharacterAPI& api)
+=======
+std::deque<std::deque<double>> generate_weights(std::deque<std::deque<bool>> &map, ICharacterAPI &api)
+>>>>>>> remotes/origin/main
 {
     int weights_n = map.size();
     int weights_m = map[0].size();
@@ -788,7 +973,11 @@ std::deque<std::deque<double>> generate_weights(std::deque<std::deque<bool>>& ma
         weights_n,
         std::deque<double>(weights_m, 1.0));
     auto enemies = api.GetEnemyCharacters();
+<<<<<<< HEAD
     for (const auto& enemy : enemies)
+=======
+    for (const auto &enemy : enemies)
+>>>>>>> remotes/origin/main
     {
         int enemy_x = enemy->x;
         int enemy_y = enemy->y;
@@ -809,7 +998,11 @@ std::deque<std::deque<double>> generate_weights(std::deque<std::deque<bool>>& ma
     return weights;
 }
 
+<<<<<<< HEAD
 std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<bool>>& map, std::deque<std::deque<double>>& weights, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end)
+=======
+std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<bool>> &map, std::deque<std::deque<double>> &weights, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end)
+>>>>>>> remotes/origin/main
 {
     // 功能：根据权值地图利用Dijkstra算法范围总权值和最短的路径
     // 判断，如果start和end在同一位置，直接返回空
@@ -842,7 +1035,11 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
     // 初始化距离数组，dist[r][c] 表示从起点到 (r,c) 的最小成本 (double类型)
     std::vector<std::vector<double>> dist(n, std::vector<double>(m, std::numeric_limits<double>::max()));
     // 初始化父节点数组，parent[r][c] 表示在最短路径中到达 (r,c) 的前一个节点
+<<<<<<< HEAD
     std::vector<std::vector<std::pair<int32_t, int32_t>>> parent(n, std::vector<std::pair<int32_t, int32_t>>(m, { -1, -1 }));
+=======
+    std::vector<std::vector<std::pair<int32_t, int32_t>>> parent(n, std::vector<std::pair<int32_t, int32_t>>(m, {-1, -1}));
+>>>>>>> remotes/origin/main
 
     // 优先队列存储元素类型定义: {cost (double), {row, col}}
     using PQElement = std::pair<double, std::pair<int32_t, int32_t>>;
@@ -854,7 +1051,11 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
 
     // 起点到自身的成本即为起点格子的权重 (直接从 double 类型的 weights 网格获取)
     dist[start_r][start_c] = weights[start_r][start_c];
+<<<<<<< HEAD
     pq.push({ dist[start_r][start_c], {start_r, start_c} }); // 存入格式: {成本, {行, 列}}
+=======
+    pq.push({dist[start_r][start_c], {start_r, start_c}}); // 存入格式: {成本, {行, 列}}
+>>>>>>> remotes/origin/main
 
     while (!pq.empty())
     {
@@ -883,7 +1084,11 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
             {
                 // path.push_back(path_tracer_coord);
                 path.push_back(
+<<<<<<< HEAD
                     { (path_tracer_coord.first), path_tracer_coord.second });
+=======
+                    {(path_tracer_coord.second - parent[path_tracer_coord.first][path_tracer_coord.second].second), -(path_tracer_coord.first - parent[path_tracer_coord.first][path_tracer_coord.second].first)});
+>>>>>>> remotes/origin/main
                 if (path_tracer_coord == start)
                 {
                     break;
@@ -904,7 +1109,11 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
         }
 
         // 使用 `directions` 向量探索当前节点的邻居
+<<<<<<< HEAD
         for (const auto& dir : directions)
+=======
+        for (const auto &dir : directions)
+>>>>>>> remotes/origin/main
         {
             int32_t dr_val = dir.first;
             int32_t dc_val = dir.second;
@@ -926,8 +1135,13 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
                     if (new_cost_to_reach_next < dist[next_r][next_c])
                     {
                         dist[next_r][next_c] = new_cost_to_reach_next;
+<<<<<<< HEAD
                         parent[next_r][next_c] = { r, c };
                         pq.push({ new_cost_to_reach_next, {next_r, next_c} });
+=======
+                        parent[next_r][next_c] = {r, c};
+                        pq.push({new_cost_to_reach_next, {next_r, next_c}});
+>>>>>>> remotes/origin/main
                     }
                 }
             }
@@ -939,6 +1153,7 @@ std::vector<std::pair<int32_t, int32_t>> FindWeightedPath(std::deque<std::deque<
     return {};
 }
 
+<<<<<<< HEAD
 // 找到一个坐标集中距离某点最近的坐标
 std::pair<int, int> FindClosestPoint(const std::vector<std::pair<int, int>>& points, const std::pair<int, int>& myPosition)
 {
@@ -1005,4 +1220,150 @@ void SortPointsByProximity(std::vector<std::pair<int, int>>& points, const std::
         }
         swap(points[i], points[closestIdx]);
     }
+=======
+// 打印路径 调试用
+void Print_Path(std::vector<std::pair<int32_t, int32_t>> path)
+{
+    std::cout << "Path: ";
+    for (auto itr : path)
+    {
+        std::cout << "(" << itr.first << "," << itr.second << ")";
+    }
+    std::cout << "End" << std::endl;
+    std::cout << std::endl;
+}
+
+// 当目标点是障碍时（即目标点不可通行），不可直接以目标点寻路，先调用该函数找到障碍附近的空地，以该空地为终点调用寻路
+// 返回值是vector，存储多个可能的空地（应对某个空地被其他角色占用的情况）
+std::vector<std::pair<int32_t, int32_t>> SpaceAroundTarget(std::deque<std::deque<bool>> &map, std::pair<int32_t, int32_t> target)
+{
+    std::vector<std::pair<int32_t, int32_t>> space;
+    for (auto itr : directions)
+    {
+        if (target.first + itr.first < 0 || target.first + itr.first >= map.size() || target.second + itr.second < 0 || target.second + itr.second >= map[0].size())
+        {
+            continue;
+        }
+        if (map[target.first + itr.first][target.second + itr.second])
+        {
+            auto temp = std::make_pair(target.first + itr.first, target.second + itr.second);
+            space.push_back(temp);
+        }
+    }
+    return space;
+}
+
+// 攻击范围内存在敌人时返回{敌人队伍ID，敌人ID} 存在多个敌人时只返回第一个敌人的ID
+std::pair<int, int> GetEnemyToAttack(ICharacterAPI &api)
+{
+    bool ableToAttack = (selfinfo->characterType != THUAI8::CharacterType::TangSeng &&
+                         selfinfo->characterType != THUAI8::CharacterType::JiuLing);
+    if (!ableToAttack)
+        return {-1, -1};
+
+    auto enemies = api.GetEnemyCharacters();
+    for (const auto &enemy : enemies)
+    {
+        double dx = selfinfo->x - enemy->x;
+        double dy = selfinfo->y - enemy->y;
+        double distance = hypot(dx, dy);
+        if (distance < selfinfo->commonAttackRange * 1000)
+            return {enemy->teamID, enemy->playerID};
+    }
+    return {-1, -1};
+}
+
+// 把角色移动至其所在格子的中央 消除移动途中的误差
+void MoveToCenter(ICharacterAPI &api, const std::pair<double, double> &location)
+{
+    auto x = location.first;
+    auto y = location.second;
+    int cellX = api.GridToCell(x);
+    int cellY = api.GridToCell(y);
+    double goalX = api.CellToGrid(cellX);
+    double goalY = api.CellToGrid(cellY);
+
+    double dx = goalX - x;
+    double dy = goalY - y;
+    double distance = hypot(dx, dy);
+    if (distance < 0.01)
+    {
+        std::cout << "Already at center (Δ=" << distance << ")" << std::endl;
+        return;
+    }
+
+    auto currentInfo = api.GetSelfInfo();
+    double currentSpeed = currentInfo->speed;                 // 格/s
+    double buffRemaining = currentInfo->speedBuffTime * 1000; // ms
+
+    double theta = atan2(dy, dx);
+    double totalTime = (distance / currentSpeed) * 1000; // ms
+
+    if (buffRemaining > 0 && buffRemaining < totalTime)
+    {
+        double buffDistance = currentSpeed * buffRemaining;
+        double remainingTime = (distance - buffDistance) / 2.5;
+        api.Move(buffRemaining, theta);
+        api.Move(remainingTime, theta);
+        std::cout << "Split move: " << buffRemaining << "s@" << currentSpeed
+                  << " + " << remainingTime << "s@" << 2500 << std::endl;
+    }
+    else
+    {
+        api.Move(totalTime, theta);
+        std::cout << "Unified move: " << totalTime << "s@" << currentSpeed << std::endl;
+    }
+}
+
+// 沿着FindPath()给出的路线运动 考虑了移速buff 包含误差修正
+void MoveFollowPath(ICharacterAPI &api, std::vector<std::pair<int32_t, int32_t>> path, int oneStep)
+{
+    if (path.size() == 0)
+    {
+        return;
+    }
+    auto one_step = path.size() >= oneStep ? oneStep : path.size(); // 最多移动oneStep步 防止积累过多误差或长时间占用线程
+    for (int i = 0; i < one_step; i++)
+    {
+        double current_speed = selfinfo->speed;                 // 格/s
+        double buff_remaining = selfinfo->speedBuffTime * 1000; // ms
+        double total_time = (1000 / current_speed) * 1000;      // ms
+        std::pair<int, int> pos = path[i];
+
+        // 处理buff时间不足的情况
+        if (buff_remaining > 0 && buff_remaining < total_time)
+        {
+            double buff_distance = current_speed * buff_remaining;
+            double remaining_distance = 1000 - buff_distance;
+            total_time += remaining_distance / 2.5;
+        }
+
+        if (pos.first >= 1)
+            api.MoveRight(total_time * pos.first);
+        if (pos.first <= -1)
+            api.MoveLeft(-total_time * pos.first);
+        if (pos.second >= 1)
+            api.MoveUp(total_time * pos.second);
+        if (pos.second <= -1)
+            api.MoveDown(-total_time * pos.second);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        auto enemy = GetEnemyToAttack(api);
+        if (enemy.first != -1)
+            api.Common_Attack(enemy.second);
+    }
+    MoveToCenter(api, std::make_pair(api.GetSelfInfo()->x, api.GetSelfInfo()->y));
+    std::cout << "Modified Location: (" << api.GetSelfInfo()->x << "," << api.GetSelfInfo()->y << ")" << std::endl;
+}
+
+void SortSource(std::vector<std::pair<int32_t, int32_t>> &sourceLocations)
+{
+    // 将资源（建筑）按照离自己大本营的欧氏距离排序
+    std::sort(sourceLocations.begin(), sourceLocations.end(), [](std::pair<int32_t, int32_t> a, std::pair<int32_t, int32_t> b)
+              { return (a.first - myHomeLocation.first) * (a.first - myHomeLocation.first) + (a.second - myHomeLocation.second) * (a.second - myHomeLocation.second) < (b.first - myHomeLocation.first) * (b.first - myHomeLocation.first) + (b.second - myHomeLocation.second) * (b.second - myHomeLocation.second); });
+}
+int Distance(int x1, int y1, int x2, int y2)
+{
+    return sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2));
+>>>>>>> remotes/origin/main
 }
