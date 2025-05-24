@@ -943,6 +943,7 @@ void MoveFollowPath2(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>
         //std::cout << "moveTime:" << moveTime * 1000 + 1 << std::endl;
         api.Print("moveTime:" + std::to_string(moveTime));
         std::this_thread::sleep_for(std::chrono::milliseconds((int)(moveTime)));
+        // TODO - ATTACK ENEMY 
     }
 }
 void SortSource(std::vector<std::pair<int32_t, int32_t>>& sourceLocations)
