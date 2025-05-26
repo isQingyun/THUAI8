@@ -914,6 +914,18 @@ void MoveFollowPath2(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>
     std::this_thread::sleep_for(std::chrono::milliseconds((int)(moveTime))); // 370
     for (int i = 0; i < one_step; i++)
     {
+        // TODO - ATTACK ENEMY 
+        auto commonAttackRange = selfinfo->commonAttackRange;
+        auto enemy = GetEnemyToAttack(api);
+        if (enemy.first != -1) {
+            api.Common_Attack(enemy.second);
+            std::pair<int32_t, int32_t> target = GetEnemyLocationFromID(api, enemy.second);
+            if (Distance(selfinfo->x, selfinfo->y, target.first * 1000, target.second * 1000) < commonAttackRange) {
+                // 距离够直接攻击
+                api.Common_Attack(enemy.second);
+                api.Print("Attack is successful!");
+            }
+        }
         current = path[i];
         if (Distance(current.first * 1000 + 500, current.second * 1000 + 500, end.first * 1000 + 500, end.second * 1000 + 500) < distance)
         {
@@ -943,7 +955,7 @@ void MoveFollowPath2(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>
         //std::cout << "moveTime:" << moveTime * 1000 + 1 << std::endl;
         api.Print("moveTime:" + std::to_string(moveTime));
         std::this_thread::sleep_for(std::chrono::milliseconds((int)(moveTime)));
-        // TODO - ATTACK ENEMY 
+
     }
 }
 void SortSource(std::vector<std::pair<int32_t, int32_t>>& sourceLocations)
