@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include "utils.hpp"
 #define PI 3.1415926535
 
 // ---------------全局变量声明------------------------------
@@ -33,7 +34,7 @@ std::vector<std::pair<int, int>> constructionLocations;                         
 int constructionIndex = 0;                                                              // 建筑点索引
 std::deque<std::deque<bool>> boolMap;                                                   // 布尔地图（寻路等函数所需的实参）
 std::shared_ptr<const THUAI8::Character> selfinfo;                                      // 角色信息
-const std::vector<std::pair<int, int>> directions = { {1, 0}, {0, 1}, {-1, 0}, {0, -1} }; // 右，下，左，上 寻路等函数所用的中间量
+std::vector<std::pair<int, int>> directions = { {1, 0}, {0, 1}, {-1, 0}, {0, -1} }; // 右，下，左，上 寻路等函数所用的中间量
 std::vector<std::vector<THUAI8::PlaceType>> mapinfo;                                    // 地图信息
 int economyRecourseAmount;                                                              // 经济资源总数
 int additionRecourseAmount;                                                             // 加成资源总数
@@ -46,12 +47,14 @@ std::pair<int, int> play5Location;
 std::pair<int, int> play6Location;
 std::vector<std::pair<int, int>> checkpoints;// { {2,2}, {1,48}, {48,48}, {48,1} };
 int curr_checkpoint = 0;
-bool flagForPlayer4 = true;
+bool flagForPlayer = true;
+double skillUseTime = -60;
+// std::chrono::system_clock::time_point startPoint;
 //=================全局函数声明=============================
 
 void GetMap(IAPI& api);
 std::vector<std::pair<int32_t, int32_t>> FindPath(std::deque<std::deque<bool>>& map, std::pair<int32_t, int32_t> start, std::pair<int32_t, int32_t> end);
-std::pair<int, int> GetEnemyToAttack(ICharacterAPI& api);
+std::shared_ptr<const THUAI8::Character> GetEnemyToAttack(ICharacterAPI& api);
 void Print_Path(std::vector<std::pair<int32_t, int32_t>> path);
 void MoveToCenter(ICharacterAPI& api, const std::pair<double, double>& location);
 void MoveFollowPath(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>> path, int oneStep = 10);
@@ -66,6 +69,7 @@ int DistanceSq(const std::pair<int, int>& a, const std::pair<int, int>& b);
 double CalculateAngle(double x1, double y1, double x2, double y2);
 void SortPointsByProximity(std::vector<std::pair<int, int>>& points, const std::pair<int, int>& myPosition);
 std::pair<int32_t, int32_t> GetEnemyLocationFromID(ICharacterAPI& api, int target_playerID);
+std::pair<int32_t, int32_t> GetEnemyBOSSLocation(ICharacterAPI& api);
 
 
 std::array<THUAI8::CharacterType, 6> CharacterTypeDict;
@@ -79,7 +83,7 @@ extern const std::array<THUAI8::CharacterType, 6> BuddhistsCharacterTypeDict = {
 	THUAI8::CharacterType::Monkid,
 	THUAI8::CharacterType::Monkid,
 	THUAI8::CharacterType::ZhuBajie,
-	THUAI8::CharacterType::ShaWujing,
+	THUAI8::CharacterType::ZhuBajie,
 };
 
 extern const std::array<THUAI8::CharacterType, 6> MonstersCharacterTypeDict = {
@@ -88,7 +92,7 @@ extern const std::array<THUAI8::CharacterType, 6> MonstersCharacterTypeDict = {
 	THUAI8::CharacterType::Pawn,
 	THUAI8::CharacterType::Pawn,
 	THUAI8::CharacterType::NiuMowang,
-	THUAI8::CharacterType::TieShan,
+	THUAI8::CharacterType::NiuMowang,
 };
 
 // extern const std::array<THUAI8::CharacterType, 6> BuddhistsCharacterTypeDict = {
@@ -113,8 +117,11 @@ void AI::play(ICharacterAPI& api)
 {
 	selfinfo = api.GetSelfInfo();
 	mapinfo = api.GetFullMap();
-
-	// std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	/*auto time = api.GetFrameCount();*/
+	double timer = api.GetFrameCount() *50/1000.0; // 每50msyizhen
+	/*api.Print("FrameCount: " + std::to_string(time) + " Time: " + std::to_string(num) + "s");*/
+	api.Print(" Time: " + std::to_string(timer) + "s");
+	api.Print("Skill Time:" + std::to_string(skillUseTime));
 	if (!getMapSuccess)
 	{
 		GetMap(api);
@@ -137,7 +144,7 @@ void AI::play(ICharacterAPI& api)
 			auto path = FindWeightedPath(boolMap, weight, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target[0]);
 			MoveFollowPath2(api, path, 1500);
 		}
-		else
+		else if(flagForPlayer)
 		{
 			if (!economyResourceLocations.empty())
 			{
@@ -153,6 +160,8 @@ void AI::play(ICharacterAPI& api)
 					if (economyResourceIndex_tail < 0)
 					{
 						economyResourceIndex_tail = economyRecourseAmount - 1;
+						flagForPlayer = false;
+						return;////////////////////////////////////
 					}
 					target = economyResourceLocations[economyResourceIndex_tail];
 					targetState = api.GetEconomyResourceState(target.first, target.second);
@@ -179,6 +188,10 @@ void AI::play(ICharacterAPI& api)
 			{
 				std::cout << "No economy resource available!" << std::endl;
 			}
+		}
+		else
+		{
+			api.Print("PlayerFlag==========False");
 		}
 	}
 	//else if (this->playerID == 2)
@@ -236,7 +249,17 @@ void AI::play(ICharacterAPI& api)
 	{
 		// player5的操作
 		// zhubajie
-		if (flagForPlayer4) {
+		if (selfinfo->teamID == 0)
+		{
+			if (selfinfo->hp <= 100)//先回点血
+			{
+				if (api.Skill_Attack(0).get())
+				{
+					skillUseTime = timer;
+				}
+			}
+		}
+		if (flagForPlayer) {
 			if (!economyResourceLocations.empty())
 			{
 				auto target = economyResourceLocations[economyResourceIndex_head];
@@ -259,7 +282,7 @@ void AI::play(ICharacterAPI& api)
 					if (economyResourceIndex_head >= economyRecourseAmount) //TEST
 					{
 						economyResourceIndex_head = 0;
-						flagForPlayer4 = false;
+						flagForPlayer = false;
 						break;
 					}
 					// api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
@@ -291,7 +314,7 @@ void AI::play(ICharacterAPI& api)
 			auto commonAttackRange = selfinfo->commonAttackRange;
 			auto enemy = GetEnemyToAttack(api);
 			int mode = 0;  // 0 代表巡逻模式，1代表攻击模式
-			if (enemy.first != -1) mode = 1;  // 如果找到了可以攻击的敌人，进入攻击模式
+			if (enemy != nullptr) mode = 1;  // 如果找到了可以攻击的敌人，进入攻击模式
 			if (mode == 0) {
 				// TODO
 				std::vector<std::pair<int, int>> checkpoints = { {2,2}, {25, 25}, { 2,48 }, {48,48}, {25, 25}, { 48,2 } };
@@ -307,32 +330,33 @@ void AI::play(ICharacterAPI& api)
 					Print_Path(path);
 					std::this_thread::sleep_for(std::chrono::milliseconds(70));
 					MoveFollowPath2(api, path, commonAttackRange);
-					if (Distance(selfinfo->x, selfinfo->y, target.first * 1000, target.second * 1000) < 2000)  // 如果到了目的地那么前往下一个目的地
+					if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < commonAttackRange)  // 如果到了目的地那么前往下一个目的地
 						curr_checkpoint = (curr_checkpoint + 1) % checkpoints.size();
 				}
 
 			}
 			else if (mode == 1) {
 				// 攻击模式
-				api.Common_Attack(enemy.second);
-				std::pair<int32_t, int32_t> target = GetEnemyLocationFromID(api, enemy.second);
-				api.Print("Selected Enemy ID: " + std::to_string(enemy.second) + " Location: (" + std::to_string(target.first) + "," + std::to_string(target.second) + ")");
-				if (target.first != -1) {
-					if (Distance(selfinfo->x, selfinfo->y, target.first * 1000, target.second * 1000) < commonAttackRange) {
-						// 距离够直接攻击
-						api.Common_Attack(enemy.second);
-						api.Print("Attack is successful!");
-					}
-					else
-					{
-						// 距离不够寻路移动
-						auto locationTarget = SpaceAroundTarget(boolMap, target);
-						auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]);
-						Print_Path(path);
-						std::this_thread::sleep_for(std::chrono::milliseconds(70));
-						MoveFollowPath2(api, path, commonAttackRange);
-					}
+				//api.Common_Attack(enemy.second);
+				//std::pair<int32_t, int32_t> target = GetEnemyLocationFromID(api, enemy.second);
+				//api.Print("Selected Enemy ID: " + std::to_string(enemy.second) + " Location: (" + std::to_string(target.first) + "," + std::to_string(target.second) + ")");
+				/*if (target.first != -1) {*/
+				if (Distance(selfinfo->x, selfinfo->y, enemy->x, enemy->y) < commonAttackRange) {
+					// 距离够直接攻击
+					api.Common_Attack(enemy->playerID);
+					api.Print("Attack is successful!");
 				}
+				else
+				{
+					// 距离不够寻路移动
+					std::pair<int32_t, int32_t> target = { enemy->x / 1000, enemy->y / 1000 };
+					auto locationTarget = SpaceAroundTarget(boolMap, target);
+					auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]);
+					Print_Path(path);
+					std::this_thread::sleep_for(std::chrono::milliseconds(70));
+					MoveFollowPath2(api, path, commonAttackRange);
+				}
+				//}
 			}
 		}
 	}
@@ -360,7 +384,8 @@ void AI::play(ICharacterAPI& api)
 				if (economyResourceIndex_ext < 0)
 				{
 					economyResourceIndex_ext = 0;
-					flagForPlayer4 = false;
+					flagForPlayer = false;
+					break;
 				}
 				// api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
 				target = economyResourceLocations_ext[economyResourceIndex_ext];
@@ -376,7 +401,7 @@ void AI::play(ICharacterAPI& api)
 				if (economyResourceIndex_ext < 0)
 				{
 					economyResourceIndex_ext = 0;
-					flagForPlayer4 = false;
+					flagForPlayer = false;
 				}
 			}
 			else
@@ -399,7 +424,7 @@ void AI::play(ICharacterAPI& api)
 		// player3的操作
 		auto target = constructionLocations[constructionIndex];
 		auto targetState = api.GetConstructionState(target.first, target.second);
-		if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < 1250)
+		if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < 1100)
 		{
 			auto constructionType = targetState.value().constructionType;
 			if (constructionType == THUAI8::ConstructionType::NullConstructionType || (constructionType == THUAI8::ConstructionType::Farm && targetState.value().team_id == selfinfo->teamID))
@@ -422,7 +447,7 @@ void AI::play(ICharacterAPI& api)
 			else
 			{
 				api.Print("UNUNUNUNUN!!");
-				if (targetState.value().team_id != selfinfo->teamID)
+				if (targetState.value().team_id != selfinfo->teamID && targetState.value().hp != 0)
 				{
 					// 有敌方建筑则攻击
 					api.AttackConstruction();
@@ -442,14 +467,24 @@ void AI::play(ICharacterAPI& api)
 			//auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), target);
 			Print_Path(path);
 			std::this_thread::sleep_for(std::chrono::milliseconds(70));
-			MoveFollowPath2(api, path, 1250);
+			MoveFollowPath2(api, path, 1100);
 		}
-		}
+	}
 	else if (this->playerID == 5)
 	{
 		// player4的操作
 		// zhubajie
 		auto commonAttackRange = selfinfo->commonAttackRange;
+		if (selfinfo->teamID == 0)
+		{
+			if (selfinfo->hp <= 100&&timer-skillUseTime>=60)//先回点血
+			{
+				if (api.Skill_Attack(0).get())
+				{
+					skillUseTime = timer;
+				}
+			}
+		}
 		if (!additionResourceLocations.empty())
 		{
 			auto target = additionResourceLocations[additionResourceIndex_head];
@@ -458,7 +493,7 @@ void AI::play(ICharacterAPI& api)
 			{
 				additionResourceIndex_head++;
 				// 完尽情况暂不考虑
-				if (additionResourceIndex_head > additionRecourseAmount)
+				if (additionResourceIndex_head >= additionRecourseAmount)
 				{
 					additionResourceIndex_head = 0;
 				}
@@ -467,20 +502,37 @@ void AI::play(ICharacterAPI& api)
 			}
 			api.Print("HP:" + std::to_string(targetState.value().hp));
 			api.Print("Type:" + std::to_string(static_cast<int>(targetState.value().additionResourceType)));
-			if (Distance(selfinfo->x, selfinfo->y, target.first * 1000, target.second * 1000) < commonAttackRange)
+			
+			if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < 1500)
 			{
 				// 开采，距离够
-				api.AttackAdditionResource();
+				api.Print("selfHp" + std::to_string(selfinfo->hp));
+				if (selfinfo->hp <= 100 && timer - skillUseTime >= 60)//先回点血
+				{
+					if (api.Skill_Attack(0).get())
+					{
+						skillUseTime = timer;
+					}
+				}
+				/*if (selfinfo->hp < 100)
+				{
+					api.Recover(200);
+					api.Print("RRRRRRRRRRRRR");
+				}
+				else
+				{*/
+					api.AttackAdditionResource();
+				//}
 				std::this_thread::sleep_for(std::chrono::milliseconds(70));
 			}
 			else
 			{
 				// 距离不够寻路移动
 				auto locationTarget = SpaceAroundTarget(boolMap, target);
-				auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[1]);
+				auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]);
 				Print_Path(path);
 				std::this_thread::sleep_for(std::chrono::milliseconds(70));
-				MoveFollowPath2(api, path, commonAttackRange);
+				MoveFollowPath2(api, path, 1500);
 			}
 		}
 		else
@@ -488,6 +540,151 @@ void AI::play(ICharacterAPI& api)
 			std::cout << "No Additional resource available!" << std::endl;
 		}
 	}
+	else if (this->playerID == 6)
+	{
+		// player6的操作
+		// zhubajie
+		if (selfinfo->teamID == 0)
+		{
+			if (selfinfo->hp <= 100)//先回点血
+			{
+				if (api.Skill_Attack(0).get())
+				{
+					skillUseTime = timer;
+				}
+			}
+		}
+
+		if (flagForPlayer) {
+			if (!economyResourceLocations.empty())
+			{
+				auto target = economyResourceLocations[economyResourceIndex_head];
+				// api.Print("Economy Resource Index: " + std::to_string(economyResourceIndex));
+				// api.Print("Economy Resource Location: (" + std::to_string(target.first) + "," + std::to_string(target.second) + ")");
+				auto targetState = api.GetEconomyResourceState(target.first, target.second);
+				// api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
+				while (!targetState.has_value() || targetState.value().process) // Harvestable = 1,BeingHarvested = 2,Harvested = 3,
+				{
+					/*if (!targetState.has_value())
+					{
+						api.Print("TargetState is null!");
+					}
+					else
+					{
+						api.Print("process");
+					}*/
+					economyResourceIndex_head++;
+					// 完尽情况暂不考虑
+					if (economyResourceIndex_head >= economyRecourseAmount) //TEST
+					{
+						economyResourceIndex_head = 0;
+						flagForPlayer = false;
+						break;
+					}
+					// api.Print("MAPType:" + std::to_string(static_cast<int>(mapinfo[target.first][target.second])));
+					target = economyResourceLocations[economyResourceIndex_head];
+					targetState = api.GetEconomyResourceState(target.first, target.second);
+				}
+				api.Print("Process:" + std::to_string(targetState.value().process));
+				if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < 1100)
+				{
+					// 开采，距离够
+					api.Produce();
+				}
+				else
+				{
+					// 距离不够寻路移动
+					auto locationTarget = SpaceAroundTarget(boolMap, target);
+					auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[locationTarget.size() - 1]);
+					Print_Path(path);
+					std::this_thread::sleep_for(std::chrono::milliseconds(70));
+					MoveFollowPath2(api, path, 1100);
+				}
+			}
+			else
+			{
+				std::cout << "No economy resource available!" << std::endl;
+			}
+		}
+		else {
+			auto commonAttackRange = selfinfo->commonAttackRange;
+			auto enemy = GetEnemyToAttack(api);
+			int mode = 0;  // 0 代表巡逻模式，1代表攻击模式，2代表攻击敌方首领
+			if (timer > 7*60) {  // 如果超过7分钟，那么进入模式2
+				mode = 2;
+			}
+			else {
+				if (enemy != nullptr) mode = 1;  // 如果在7分钟以内，找到了可以攻击的敌人，进入攻击模式
+			}
+			if (mode == 0) {
+				api.Print("go to mode 0!");
+
+				// TODO
+				std::vector<std::pair<int, int>> checkpoints = { {2,2}, {25, 25}, { 2,48 }, {48,48}, {25, 25}, { 48,2 } };
+				// 全局变量，该角色会依次遍历checkpoints
+				// std::vector<std::pair<int, int>> checkpoints = { {2,2} };// { {2,2}, {1,48}, {48,48}, {48,1} };
+				// int curr_checkpoint = 0;
+				// std::pair<int, int> target = { 10, 10 };
+				auto target = checkpoints[curr_checkpoint];
+				auto locationTarget = SpaceAroundTarget(boolMap, target);
+				if (locationTarget.size() >= 1) {
+					auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]
+					);
+					Print_Path(path);
+					std::this_thread::sleep_for(std::chrono::milliseconds(70));
+					MoveFollowPath2(api, path, commonAttackRange);
+					if (Distance(selfinfo->x, selfinfo->y, target.first * 1000 + 500, target.second * 1000 + 500) < commonAttackRange)  // 如果到了目的地那么前往下一个目的地
+						curr_checkpoint = (curr_checkpoint + 1) % checkpoints.size();
+				}
+
+			}
+			else if (mode == 1) {
+				api.Print("go to mode 1!");
+
+				// 攻击模式
+				//api.Common_Attack(enemy.second);
+				//std::pair<int32_t, int32_t> target = GetEnemyLocationFromID(api, enemy.second);
+				//api.Print("Selected Enemy ID: " + std::to_string(enemy.second) + " Location: (" + std::to_string(target.first) + "," + std::to_string(target.second) + ")");
+				/*if (target.first != -1) {*/
+				if (Distance(selfinfo->x, selfinfo->y, enemy->x, enemy->y) < commonAttackRange) {
+					// 距离够直接攻击
+					api.Common_Attack(enemy->playerID);
+					api.Print("Attack is successful!");
+				}
+				else
+				{
+					// 距离不够寻路移动
+					std::pair<int32_t, int32_t> target = { enemy->x / 1000, enemy->y / 1000 };
+					auto locationTarget = SpaceAroundTarget(boolMap, target);
+					auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]);
+					Print_Path(path);
+					std::this_thread::sleep_for(std::chrono::milliseconds(70));
+					MoveFollowPath2(api, path, commonAttackRange);
+				}
+				//}
+			}
+			else if (mode == 2) {
+				api.Print("go to mode 2!");
+				std::pair<int32_t, int32_t> enemybossloc = GetEnemyBOSSLocation(api);
+				if (Distance(selfinfo->x, selfinfo->y, enemybossloc.first, enemybossloc.second) < commonAttackRange) {
+					// 距离够直接攻击
+					api.Common_Attack(1);  // 1是敌方首脑的ID
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					api.Print("Attack is successful!");
+				}
+				else
+				{
+					// 距离不够寻路移动
+					std::pair<int32_t, int32_t> target = { enemybossloc.first / 1000, enemybossloc.second / 1000 };
+					auto locationTarget = SpaceAroundTarget(boolMap, target);
+					auto path = FindPath(boolMap, std::make_pair(selfinfo->x / 1000, selfinfo->y / 1000), locationTarget[0]);
+					Print_Path(path);
+					std::this_thread::sleep_for(std::chrono::milliseconds(70));
+					MoveFollowPath2(api, path, commonAttackRange);
+				}
+			}
+		}
+		}
 
 }
 
@@ -497,6 +694,12 @@ void AI::play(ITeamAPI& api) // 默认team playerID 为0
 	auto teamInfo = api.GetSelfInfo();
 	auto gameinfo = api.GetGameInfo();
 	int teamID = teamInfo->teamID;
+	int playerNum[6] = { 0 };//TangSeng = 1,SunWukong = 2,ZhuBajie = 3,ShaWujing = 4,BaiLongma = 5,Monkid = 6,JiuLing = 7,HongHaier = 8,NiuMowang = 9,TieShan = 10,ZhiZhujing = 11,Pawn = 12,
+	if (teamID == 0) {
+		directions[0] = std::make_pair(-1, 0);
+		directions[2] = std::make_pair(1, 0);
+	}
+
 	if (static_cast<int>(CharacterTypeDict[0]) == 0)
 	{
 		CharacterTypeDict = (teamID == 0) ? BuddhistsCharacterTypeDict : MonstersCharacterTypeDict;
@@ -511,45 +714,70 @@ void AI::play(ITeamAPI& api) // 默认team playerID 为0
 	int CharactersIndex = Characters.size() / 2;
 
 	api.Print("CharactersIndex: " + std::to_string(CharactersIndex));
-	for (auto itr : Characters)
-	{
-		api.Print("Characters: " + std::to_string(itr->playerID));
-		api.Print("Characters: " + std::to_string(static_cast<int>(itr->characterType)));
-	}
+
 	auto EnemyCharacters = api.GetEnemyCharacters();
-	if (myHomeEconomy > 1000 && CharactersIndex < 3)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(70));
-		// api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
-		api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0);
-		/*if (api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0).get())
-		{
-			api.Print("Build " + std::to_string(CharactersIndex) );
-		}
-		else
-		{
-			api.Print("Build " + std::to_string(CharactersIndex)+ " failed");
-		}*/
-	}
-	else if (myHomeEconomy >= 4000 && CharactersIndex < 4)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(70));
-		// api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
-		api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0);
-	}
-	// 调试用，上传前得修改！
-	else if (myHomeEconomy >= 4000 && CharactersIndex < 5)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(70));
-		// api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
-		api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0);
-	}
+	//if (myHomeEconomy > 1000 && CharactersIndex < 3)
+	//{
+	//	std::this_thread::sleep_for(std::chrono::milliseconds(70));
+	//	 //api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
+	//	api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0);
+	//	/*if (api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0).get())
+	//	{
+	//		api.Print("Build " + std::to_string(CharactersIndex) );
+	//	}
+	//	else
+	//	{
+	//		api.Print("Build " + std::to_string(CharactersIndex)+ " failed");
+	//	}*/
+	//}
+	//else if (myHomeEconomy >= 4000 && CharactersIndex < 4)
+	//{
+	//	std::this_thread::sleep_for(std::chrono::milliseconds(70));
+	//	// api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
+	//	api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0);
+	//}
+	//// 调试用，上传前得修改！
+	//else if (myHomeEconomy >= 4000 && CharactersIndex < 5)
+	//{
+	//	std::this_thread::sleep_for(std::chrono::milliseconds(70));
+	//	// api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
+	//	api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0);
+	//}
 	//else if (myHomeEconomy >= 10000 && CharactersIndex < 5)
 	//{
 	//    std::this_thread::sleep_for(std::chrono::milliseconds(70));
 	//    // api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
 	//    api.BuildCharacter(CharacterTypeDict[CharactersIndex], 0);
 	//}
+
+	// 装备安装逻辑
+	for (auto itr : Characters)
+	{
+		api.Print("Characters: " + std::to_string(itr->playerID));
+		api.Print("Characters: " + std::to_string(static_cast<int>(itr->characterType)));
+		playerNum[(static_cast<int>(itr->characterType)-1) % 6]++;
+		if ((myHomeEconomy >= 3500) && (itr->hp <= 30)) {
+			api.InstallEquipment(itr->playerID, THUAI8::EquipmentType::SmallHealthPotion);
+		}
+		else if (myHomeEconomy >= 5500 && (!itr->shieldEquipment)) {
+			api.InstallEquipment(itr->playerID, THUAI8::EquipmentType::MediumShield);
+		}
+		if ((myHomeEconomy >= 4000) && (itr->isBlind || itr->isStunned || itr->isBurned)) {
+			api.InstallEquipment(itr->playerID, THUAI8::EquipmentType::PurificationPotion);
+		}
+	}
+	if (playerNum[5] /2< 2)
+	{
+		api.BuildCharacter(static_cast<THUAI8::CharacterType>(6 + 6 * teamID), 0);
+	}
+	if (playerNum[2]/2 < 3)
+	{
+		api.BuildCharacter(static_cast<THUAI8::CharacterType>(3 + 6 * teamID), 0);
+	}
+	//if (playerNum[4] / 2 < 1) {
+	//	api.BuildCharacter(static_cast<THUAI8::CharacterType>(5 + 6 * teamID), 0);
+	//}
+
 }
 
 // 获取地图，存储经济资源，加成资源，建筑点，大本营的位置
@@ -752,27 +980,35 @@ std::vector<std::pair<int32_t, int32_t>> SpaceAroundTarget(std::deque<std::deque
 			space.push_back(temp);
 		}
 	}
+	if (!space.size()) return SpaceAroundTarget(map, std::make_pair(target.first + directions[0].first, target.second + directions[0].second));
 	return space;
 }
 
 // 攻击范围内存在敌人时返回{敌人队伍ID，敌人ID} 存在多个敌人时只返回第一个敌人的ID
-std::pair<int, int> GetEnemyToAttack(ICharacterAPI& api)
+std::shared_ptr<const THUAI8::Character>GetEnemyToAttack(ICharacterAPI& api)
 {
 	bool ableToAttack = (selfinfo->characterType != THUAI8::CharacterType::TangSeng &&
 		selfinfo->characterType != THUAI8::CharacterType::JiuLing);
 	if (!ableToAttack)
-		return { -1, -1 };
-
+		return nullptr;
+	double bigbig = 10000000000;
 	auto enemies = api.GetEnemyCharacters();
+	if (enemies.empty())
+		return nullptr;
+	auto enemyReturn = enemies[0];
 	for (const auto& enemy : enemies)
 	{
 		double dx = selfinfo->x - enemy->x;
 		double dy = selfinfo->y - enemy->y;
 		double distance = hypot(dx, dy);
-		if (distance < selfinfo->commonAttackRange * 1000)
-			return { enemy->teamID, enemy->playerID };
+		if (distance < bigbig)
+		{
+			enemyReturn = enemy;
+			bigbig = distance;
+		}
+		/*enemy->*/
 	}
-	return { -1, -1 };
+	return enemyReturn;
 }
 
 // 通过敌方ID获得敌方坐标，配合GetEnemyToAttack使用
@@ -782,6 +1018,21 @@ std::pair<int32_t, int32_t> GetEnemyLocationFromID(ICharacterAPI& api, int targe
 	for (const auto& enemy : enemies)
 	{
 		if (enemy->playerID == target_playerID) {
+			return { enemy->x, enemy->y };
+		}
+	}
+	return { -1, -1 };
+}
+
+// 获得敌方首脑坐标
+std::pair<int32_t, int32_t> GetEnemyBOSSLocation(ICharacterAPI& api)
+{
+	auto enemies = api.GetEnemyCharacters();
+	for (const auto& enemy : enemies)
+	{
+		api.Print("enemy ID: " + std::to_string(enemy->playerID));
+		if (enemy->characterType == THUAI8::CharacterType::TangSeng || enemy->characterType == THUAI8::CharacterType::JiuLing) {
+			api.Print("Returned ID:" + std::to_string(enemy->playerID));
 			return { enemy->x, enemy->y };
 		}
 	}
@@ -865,8 +1116,8 @@ void MoveFollowPath(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>>
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(400));
 		auto enemy = GetEnemyToAttack(api);
-		if (enemy.first != -1)
-			api.Common_Attack(enemy.second);
+		/*if (enemy.first != -1)
+			api.Common_Attack(enemy.second);*/
 	}
 	MoveToCenter(api, std::make_pair(api.GetSelfInfo()->x, api.GetSelfInfo()->y));
 	std::cout << "Modified Location: (" << api.GetSelfInfo()->x << "," << api.GetSelfInfo()->y << ")" << std::endl;
@@ -906,12 +1157,12 @@ void MoveFollowPath2(ICharacterAPI& api, std::vector<std::pair<int32_t, int32_t>
 		// TODO - ATTACK ENEMY 
 		auto commonAttackRange = selfinfo->commonAttackRange;
 		auto enemy = GetEnemyToAttack(api);
-		if (enemy.first != -1) {
-			api.Common_Attack(enemy.second);
-			std::pair<int32_t, int32_t> target = GetEnemyLocationFromID(api, enemy.second);
-			if (Distance(selfinfo->x, selfinfo->y, target.first * 1000, target.second * 1000) < commonAttackRange) {
+		if (enemy != nullptr) {
+			//api.Common_Attack(enemy.second);
+			//std::pair<int32_t, int32_t> target = GetEnemyLocationFromID(api, enemy.second);
+			if (Distance(selfinfo->x, selfinfo->y, enemy->x, enemy->y) < commonAttackRange) {
 				// 距离够直接攻击
-				api.Common_Attack(enemy.second);
+				api.Common_Attack(enemy->playerID);
 				api.Print("Attack is successful!");
 			}
 		}
